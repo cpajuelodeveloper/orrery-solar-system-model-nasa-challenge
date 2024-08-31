@@ -5,6 +5,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import celestialBodies from './config/celestial-bodies';
+import { CelestialBody } from './schemas/types';
 
 const SistemaSolar = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -59,7 +61,6 @@ const SistemaSolar = () => {
     const starGeometry = new THREE.SphereGeometry(500, 32, 32);
     const starBackground = new THREE.Mesh(starGeometry, starMaterial);
     scene.add(starBackground);
-        
 
     // Crear el Sol
     const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
@@ -68,7 +69,6 @@ const SistemaSolar = () => {
       map: sunTexture
     });
     const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-
     
     // Agregar luz del sol
     const sunLight = new THREE.PointLight(0xffffff, 20, 100, 1);
@@ -77,11 +77,32 @@ const SistemaSolar = () => {
     sun.add(sunLight);
     scene.add(sun);
 
+    const objects: CelestialBody[] = []; // Array para almacenar los objetos de los planetas y el Sol
+
+    // Cargar los cuerpos celestes desde el array
+    celestialBodies.forEach((body) => {
+      const geometry = new THREE.SphereGeometry(body.radius, 32, 32);
+      const textureLoader = new THREE.TextureLoader();
+      const texture = textureLoader.load(body.texture);
+      const material = new THREE.MeshPhongMaterial({ map: texture });
+      const mesh = new THREE.Mesh(geometry, material);
+
+      // Posicionar el cuerpo celeste
+      mesh.position.set(body.distance, 0, 0);
+      scene.add(mesh);
+
+      objects.push({
+        mesh,
+        orbitSpeed: body.orbitSpeed,
+        distance: body.distance
+      });
+    });
+
     // Crear la Tierra con textura
     const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const earthTexture = textureLoader.load('images/earth_texture.jpg'); // Asegúrate de tener esta imagen en tu carpeta public
-    const earthBump = textureLoader.load('images/earth_texture.jpg'); 
-    const earthspecular = textureLoader.load('images/earth_specular.jpg'); 
+    const earthTexture = textureLoader.load('textures/planets/earth/main_texture.jpg'); // Asegúrate de tener esta imagen en tu carpeta public
+    const earthBump = textureLoader.load('textures/planets/earth/bump_texture.jpg'); 
+    const earthspecular = textureLoader.load('textures/planets/earth/specular_texture.jpg'); 
     const earthMaterial = new THREE.MeshPhongMaterial({ 
       map: earthTexture,
       bumpMap: earthBump,
@@ -91,7 +112,7 @@ const SistemaSolar = () => {
       shininess: 10
     });
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-    earth.position.set(10, 0, 0);
+    earth.position.set(20, 0, 0);
     scene.add(earth);
 
     // Crear la Luna
@@ -135,6 +156,16 @@ const SistemaSolar = () => {
 
       // Rotar la Luna sobre su eje
       moon.rotation.y += 0.01;
+
+      const time = Date.now() * 0.001;
+      objects.forEach((obj) => {
+        // Órbita alrededor del Sol
+        obj.mesh.position.x = Math.cos(time * obj.orbitSpeed) * obj.distance;
+        obj.mesh.position.z = Math.sin(time * obj.orbitSpeed) * obj.distance;
+
+        // Rotación sobre su propio eje
+        obj.mesh.rotation.y += 0.005;
+      });
 
       composer.render();
     };
